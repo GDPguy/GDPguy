@@ -175,22 +175,18 @@
       }
       
       function playBounceAnimation(charImg, isHit) {
-        // Reset GIF animation by clearing and resetting src
-        charImg.src = 'blank.gif';
-        void charImg.offsetWidth; // Force reflow to ensure browser reloads the GIF
-        charImg.src = 'derpy_bounce_noloop.gif';
+        // Force reload by using a cache-busting query string
+        charImg.src = 'derpy_bounce_noloop.gif?t=' + new Date().getTime();
 
-        // Restore idle after animation duration
         setTimeout(() => {
           charImg.src = 'derpy_idle.gif';
         }, 650);
 
-        // Play corresponding sound
         if (isHit) {
           hitSound.play();
-       } else {
+        } else {
           missSound.play();
-        }    
+        } 
       }
 
       function showFeedback(text, color, x, y) {
