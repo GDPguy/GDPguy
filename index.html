@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Only 99% of players can score 10 points</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: url('canvas.jpg') no-repeat center center fixed;
+      background-size: cover;
+    }
+
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 400px;
+      margin: 0 auto;
+      border: 2px solid #444;
+      overflow: hidden;
+      background-color: rgba(255, 255, 255, 0.8);
+    }
+
+    .character {
+      position: absolute;
+      top: 250px;
+      width: 100px;
+      height: 100px;
+    }
+
+    #left-char {
+      left: 60px;
+      transform: scaleX(-1);
+    }
+
+    #right-char {
+      right: 60px;
+    }
+
+    #ball {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      pointer-events: none;
+    }
+
+    .feedback {
+      position: absolute;
+      font-size: 24px;
+      font-weight: bold;
+      opacity: 1;
+      transition: opacity 1s ease-out;
+      pointer-events: none;
+    }
+
+    #scoreboard {
+      font-size: 24px;
+      margin-top: 10px;
+      color: #222;
+    }
+
+    #start-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 15px 30px;
+      font-size: 24px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    #start-button.hidden {
+      display: none;
+    }
+
+    #mute-button {
+      position: absolute;
+      top: 90%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+
+    audio {
+      display: none;
+    }
+
+    body,
+    html {
+      touch-action: manipulation;
+    }
+
+    #game-container {
+      background-image: url('game.gif');
+      background-size: cover;
+      /* or 'contain', or '100% 100%' */
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>DERPYBALL (HARD MODE)</h1>
+
+  <div id="game-container">
+    <button id="start-button">Start Game</button>
+    <button id="mute-button" class="hidden">Mute Music</button>
+    <img id="left-char" class="character" src="derpy_idle.gif" alt="Left Character">
+    <img id="right-char" class="character" src="derpy_idle.gif" alt="Right Character">
+    <img id="ball" src="ball.gif" alt="Ball">
+  </div>
+
+  <div id="scoreboard">Score: <span id="score">0</span></div>
+  <div id="highscore-container" style="margin-top:10px; font-size:20px;">
+    High Score: <span id="highscore">0</span>
+  </div>
+  <div id="controls" style="margin-top:10px; font-size:16px;">
+    Controls: Press <strong>Space</strong> or <strong>Tap/Click</strong> on the game area to hit the ball.
+  </div>
+
+  <!-- Audio -->
+  <audio id="hit-sound" src="hit.mp3"></audio>
+  <audio id="bounce-sound" src="bounce.mp3"></audio>
+  <audio id="miss-sound" src="miss.mp3"></audio>
+  <audio id="track" src="track.mp3" autoplay loop></audio>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const scoreDisplay = document.getElementById('score');
+      const ball = document.getElementById('ball');
+      const rightChar = document.getElementById('right-char');
+      const leftChar = document.getElementById('left-char');
+      const startButton = document.getElementById('start-button');
+
+      const hitSound = document.getElementById('hit-sound');
+      const bounceSound = document.getElementById('bounce-sound');
+      const missSound = document.getElementById('miss-sound');
+
+      const gameContainer = document.getElementById('game-container');
+      let touchInProgress = false;
+
+
+      const leftTargetX = 60;
+      const rightTargetX = 660;
+      const headY = 210;
+      const arcHeight = 120;
+      const ballSpeed = 0.01;
+
+      let score = 0;
+      let highscore = 0;
+      let direction = 1;
+      let progress = 0;
+      let gameActive = false;
+      let swingQueued = false;
+      let animationFrameId;
+
+      const highscoreDisplay = document.getElementById('highscore');
+
+      function getBallPosition(t) {
+        const x = leftTargetX + (rightTargetX - leftTargetX) * t;
+        const y = headY - Math.sin(Math.PI * t) * arcHeight;
+        return { x, y };
+      }
+
+      function playBounceAnimation(charImg, isHit) {
+        charImg.src = 'derpy_bounce.gif';
+        setTimeout(() => {
+          charImg.src = 'derpy_idle.gif';
+        }, 650);
+
+        if (isHit) {
+          hitSound.play();
+        } else {
+          missSound.play();
+        }
+      }
+
+      function showFeedback(text, color, x, y) {
+        const msg = document.createElement('div');
+        msg.className = 'feedback';
+        msg.style.color = color;
+        msg.style.left = `${x}px`;
+        msg.style.top = `${y}px`;
+        msg.textContent = text;
+        gameContainer.appendChild(msg);
+
+        setTimeout(() => {
+          msg.style.opacity = 0;
+          setTimeout(() => gameContainer.removeChild(msg), 1000);
+        }, 100);
+      }
+
+      function attemptHit(x, y) {
+        const isAtRight = direction === 1;
+        const charX = isAtRight ? rightTargetX : leftTargetX;
+        const charImg = isAtRight ? rightChar : leftChar;
+
+        const withinX = Math.abs(x - charX) < 40;
+        const withinY = Math.abs(y - headY) < 40;
+
+        if (withinX && withinY) {
+          playBounceAnimation(charImg, true);
+          showFeedback("Hit!", "red", x, y - 30);
+          bounceSound.play();
+          direction *= -1;
+          progress = direction === 1 ? 0 : 1;
+          score++;
+          scoreDisplay.textContent = score;
+        } else {
+          playBounceAnimation(charImg, false);
+          showFeedback("Miss!", "gray", x, y - 30);
+          endGame();
+        }
+      }
+
+      function animate() {
+        if (!gameActive) return;
+
+        progress += direction * ballSpeed;
+        const { x, y } = getBallPosition(progress);
+
+        ball.style.left = `${x}px`;
+        ball.style.top = `${y}px`;
+
+        if (progress < 0 || progress > 1) {
+          endGame();
+          return;
+        }
+
+        if (swingQueued) {
+          attemptHit(x, y);
+          swingQueued = false;
+        }
+
+        animationFrameId = requestAnimationFrame(animate);
+      }
+
+      function startGame() {
+        score = 0;
+        scoreDisplay.textContent = score;
+        direction = 1;
+        progress = 0;
+        swingQueued = false;
+        gameActive = true;
+        startButton.classList.add("hidden");
+        requestAnimationFrame(animate);
+      }
+
+      function updateHighscore() {
+        if (score > highscore) {
+          highscore = score;
+          highscoreDisplay.textContent = highscore;
+        }
+      }
+
+      // Modify endGame to update highscore
+      function endGame() {
+        gameActive = false;
+        cancelAnimationFrame(animationFrameId);
+        updateHighscore();
+        startButton.classList.remove("hidden");
+        muteButton.classList.add("hidden");
+      }
+
+
+      const muteButton = document.getElementById('mute-button');
+      const track = document.getElementById('track');
+
+      track.volume = 0.3; // Set volume to 30%
+
+      startButton.addEventListener('click', () => {
+        // Start the game
+        startGame();
+
+        // Play the background track on user interaction
+        const track = document.getElementById('track');
+        track.play().catch(err => {
+          // If the play fails, maybe log or ignore
+          console.log("Autoplay prevented:", err);
+        });
+        muteButton.classList.remove('hidden');
+      });
+
+      muteButton.addEventListener('click', () => {
+        if (track.muted) {
+          track.muted = false;
+          muteButton.textContent = 'Mute Music';
+        } else {
+          track.muted = true;
+          muteButton.textContent = 'Unmute Music';
+        }
+      });
+
+      document.body.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && gameActive) {
+          swingQueued = true;
+          e.preventDefault();
+        }
+      });
+
+      gameContainer.addEventListener('pointerdown', (e) => {
+        if (e.target === startButton || e.target === muteButton) return;
+        if (!gameActive) return;
+        swingQueued = true;
+      });
+
+    });
+  </script>
+
+</body>
+
+</html>
