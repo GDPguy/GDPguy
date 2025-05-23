@@ -176,7 +176,7 @@
       
       function playBounceAnimation(charImg, isHit) {
         // Reset GIF animation by clearing and resetting src
-        charImg.src = '';
+        charImg.src = 'blank.gif';
         void charImg.offsetWidth; // Force reflow to ensure browser reloads the GIF
         charImg.src = 'derpy_bounce_noloop.gif';
 
