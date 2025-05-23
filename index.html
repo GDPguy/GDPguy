@@ -186,6 +186,25 @@
           missSound.play();
         }
       }
+      
+      function playBounceAnimation(charImg, isHit) {
+        // Reset GIF animation by clearing and resetting src
+        charImg.src = '';
+        void charImg.offsetWidth; // Force reflow to ensure browser reloads the GIF
+        charImg.src = 'derpy_bounce_noloop.gif';
+
+        // Restore idle after animation duration
+        setTimeout(() => {
+          charImg.src = 'derpy_idle.gif';
+        }, 650);
+
+        // Play corresponding sound
+        if (isHit) {
+          hitSound.play();
+       } else {
+          missSound.play();
+        }    
+      }
 
       function showFeedback(text, color, x, y) {
         const msg = document.createElement('div');
