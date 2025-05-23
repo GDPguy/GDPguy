@@ -173,19 +173,6 @@
         const y = headY - Math.sin(Math.PI * t) * arcHeight;
         return { x, y };
       }
-
-      function playBounceAnimation(charImg, isHit) {
-        charImg.src = 'derpy_bounce.gif';
-        setTimeout(() => {
-          charImg.src = 'derpy_idle.gif';
-        }, 650);
-
-        if (isHit) {
-          hitSound.play();
-        } else {
-          missSound.play();
-        }
-      }
       
       function playBounceAnimation(charImg, isHit) {
         // Reset GIF animation by clearing and resetting src
